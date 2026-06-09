@@ -189,6 +189,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
     }
 
+    // Capitalize first letter of each word in the name
+    function capitalizeName(nameStr) {
+        return nameStr
+            .split(/\s+/)
+            .map(word => {
+                if (word.length === 0) return '';
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+            })
+            .join(' ');
+    }
+
     // Preprocess spaces inside email candidates
     function preprocessEmailSpaces(text) {
         // 1. Remove spaces around '@'
@@ -428,100 +439,143 @@ document.addEventListener('DOMContentLoaded', () => {
             statEmailWrongContainer.style.display = 'flex';
         }
 
-        // Reset output arrays
+        // Reset output arrays and tables
         processedEmails = [];
         processedPhones = [];
-
-        // ----------------------------------------------------------------------
-        // Part 1: Email Processing
-        // ----------------------------------------------------------------------
-        // Preprocess spaces in email domains first
-        let emailPreprocessedText = preprocessEmailSpaces(text);
-        
-        // Relaxed regex to find email candidates (anything containing @)
-        const emailCandidateRegex = /[^\s,;:()<>\[\]]+@[^\s,;:()<>\[\]]+/g;
-        let emailMatches = emailPreprocessedText.match(emailCandidateRegex) || [];
+        processedCustomers = [];
 
         let validEmails = [];
         let correctedEmailsList = [];
         let wrongDomainEmails = [];
         let invalidEmailsList = [];
 
-        emailMatches.forEach(candidate => {
-            const cleanCandidate = stripNoise(candidate);
-            if (!cleanCandidate) return;
+        let validPhones = [];
+        let correctedPhonesList = [];
+        let invalidPhonesList = [];
+        let phoneCounts = {};
 
-            const res = normalizeEmail(cleanCandidate, autocorrectEnabled);
-            
-            // Check lowercase setting
-            if (lowercaseEnabled) {
-                res.email = res.email.toLowerCase();
-            }
+        let customers = [];
 
-            if (!res.isValid) {
-                invalidEmailsList.push(res);
-            } else {
-                // If it is valid email structure
-                const isGmail = res.email.toLowerCase().endsWith('@gmail.com');
-                
-                if (emailMode === 'gmail' && !isGmail) {
-                    wrongDomainEmails.push(res);
-                } else {
-                    if (res.corrected) {
-                        correctedEmailsList.push(res);
-                    }
-                    validEmails.push(res);
-                }
-            }
-        });
+        // Split raw text into lines to process each line as a customer record
+        let lines = text.split(/\r?\n/);
 
-        // ----------------------------------------------------------------------
-        // Part 2: Phone Number Processing
-        // ----------------------------------------------------------------------
-        // Strip dates/timestamps to prevent them from being detected as phone numbers
-        // E.g., 08-06-2026 7, 08-06-2026 18, 026.06.08 19
+        // Date patterns to filter out
         const datePatterns = [
             /\b\d{1,2}[-./]\d{1,2}[-./](?:20|19)\d{2}(?:\s+\d{1,2}(?::\d{2})*)?\b/g, // DD-MM-YYYY HH:MM
             /\b(?:20|19)\d{2}[-./]\d{1,2}[-./]\d{1,2}(?:\s+\d{1,2}(?::\d{2})*)?\b/g, // YYYY-MM-DD HH:MM
             /\b0\d{2}[-./]\d{1,2}[-./]\d{1,2}(?:\s+\d{1,2}(?::\d{2})*)?\b/g          // 026.06.08 19
         ];
-        let phoneText = text;
-        if (autocorrectEnabled) {
-            datePatterns.forEach(pattern => {
-                phoneText = phoneText.replace(pattern, ' ');
-            });
-        }
 
-        // Regex to match phone candidates (starts with +84, 84, 0 or word boundary di động and has digits/formatting)
-        const phoneCandidateRegex = /(?:\+?84|0|\b[35789])(?:\s*[\.\-\(\)]*\s*\d){8,11}\b/g;
-        let phoneMatches = phoneText.match(phoneCandidateRegex) || [];
+        lines.forEach(line => {
+            if (!line.trim()) return;
 
-        let validPhones = [];
-        let correctedPhonesList = [];
-        let invalidPhonesList = [];
-        let phoneCounts = {}; // To track duplicates
+            // 1. Extract first email on this line
+            let emailLine = preprocessEmailSpaces(line);
+            const emailCandidateRegex = /[^\s,;:()<>\[\]]+@[^\s,;:()<>\[\]]+/i;
+            let emailMatch = emailLine.match(emailCandidateRegex);
+            let emailVal = null;
 
-        phoneMatches.forEach(candidate => {
-            const cleanCandidate = stripNoise(candidate);
-            if (!cleanCandidate || cleanCandidate.length < 7) return; // ignore very short matches
+            if (emailMatch) {
+                const cleanCandidate = stripNoise(emailMatch[0]);
+                if (cleanCandidate) {
+                    const res = normalizeEmail(cleanCandidate, autocorrectEnabled);
+                    if (lowercaseEnabled) {
+                        res.email = res.email.toLowerCase();
+                    }
 
-            const res = normalizePhone(cleanCandidate, autocorrectEnabled);
-
-            if (!res.isValid) {
-                invalidPhonesList.push(res);
-            } else {
-                // Store phone
-                if (res.corrected) {
-                    correctedPhonesList.push(res);
+                    if (!res.isValid) {
+                        invalidEmailsList.push(res);
+                    } else {
+                        const isGmail = res.email.toLowerCase().endsWith('@gmail.com');
+                        if (emailMode === 'gmail' && !isGmail) {
+                            wrongDomainEmails.push(res);
+                        } else {
+                            if (res.corrected) {
+                                correctedEmailsList.push(res);
+                            }
+                            validEmails.push(res);
+                            emailVal = res.email;
+                        }
+                    }
                 }
-                validPhones.push(res);
+            }
+
+            // 2. Extract first phone on this line
+            let phoneLine = line;
+            if (autocorrectEnabled) {
+                datePatterns.forEach(pattern => {
+                    phoneLine = phoneLine.replace(pattern, ' ');
+                });
+            }
+
+            const phoneCandidateRegex = /(?:\+?84|0|\b[35789])(?:\s*[\.\-\(\)]*\s*\d){8,11}\b/i;
+            let phoneMatch = phoneLine.match(phoneCandidateRegex);
+            let phoneVal = null;
+
+            if (phoneMatch) {
+                const cleanCandidate = stripNoise(phoneMatch[0]);
+                if (cleanCandidate && cleanCandidate.length >= 7) {
+                    const res = normalizePhone(cleanCandidate, autocorrectEnabled);
+                    if (!res.isValid) {
+                        invalidPhonesList.push(res);
+                    } else {
+                        if (res.corrected) {
+                            correctedPhonesList.push(res);
+                        }
+                        validPhones.push(res);
+                        phoneVal = res.normalized;
+                        phoneCounts[res.normalized] = (phoneCounts[res.normalized] || 0) + 1;
+                    }
+                }
+            }
+
+            // 3. Extract Name if email or phone is found on this line
+            const hasEmailMatchObj = emailMatch && emailMatch[0];
+            const hasPhoneMatchObj = phoneMatch && phoneMatch[0];
+            
+            if (emailVal || phoneVal || hasEmailMatchObj || hasPhoneMatchObj) {
+                let nameLine = line;
                 
-                // Track frequency
-                phoneCounts[res.normalized] = (phoneCounts[res.normalized] || 0) + 1;
+                // Remove email text
+                if (hasEmailMatchObj) {
+                    nameLine = nameLine.replace(emailMatch[0], ' ');
+                }
+                // Remove phone text
+                if (hasPhoneMatchObj) {
+                    nameLine = nameLine.replace(phoneMatch[0], ' ');
+                }
+                // Remove dates
+                datePatterns.forEach(pattern => {
+                    nameLine = nameLine.replace(pattern, ' ');
+                });
+
+                // Clean up punctuation
+                nameLine = nameLine.replace(/[:,;\-\|\+\*=~#\(\)\[\]]/g, ' ');
+                
+                // Remove common labels
+                const labelsRegex = /\b(?:khách\s+hàng|khach\s+hang|tên|ten|name|sđt|sdt|phone|email|mail|liên\s+hệ|lien\s+he|lh|đt|dt|số|so|di\s+động|di\s+dong|mobi)\b/gi;
+                nameLine = nameLine.replace(labelsRegex, ' ');
+
+                // Remove numbers at start
+                nameLine = nameLine.replace(/^\s*\d+\s*[.)\]-]?/g, ' ');
+
+                // Trim and clean spaces
+                nameLine = nameLine.replace(/\s+/g, ' ').trim();
+
+                let finalName = "Chưa rõ tên";
+                if (nameLine.length >= 2 && !/^[0-9\s.\-_]+$/.test(nameLine)) {
+                    finalName = capitalizeName(nameLine);
+                }
+
+                customers.push({
+                    name: finalName,
+                    phone: phoneVal || "Chưa có SĐT",
+                    email: emailVal || "Chưa có Email"
+                });
             }
         });
 
-        // Calculate duplicate statistics
+        // Calculate duplicate statistics for phones
         let dupPhoneCount = 0;
         let duplicatePhonesDetails = [];
         Object.keys(phoneCounts).forEach(num => {
@@ -538,7 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Deduplication & Sorting
         // ----------------------------------------------------------------------
         
-        // Handle Email Deduplication
+        // Handle Email list deduplication/sorting
         let finalEmails = validEmails.map(item => item.email);
         if (deduplicateEnabled) {
             finalEmails = [...new Set(finalEmails)];
@@ -547,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
             finalEmails.sort((a, b) => a.localeCompare(b));
         }
 
-        // Handle Phone Deduplication
+        // Handle Phone list deduplication/sorting
         let finalPhones = validPhones.map(item => item.normalized);
         if (deduplicateEnabled) {
             finalPhones = [...new Set(finalPhones)];
@@ -556,14 +610,57 @@ document.addEventListener('DOMContentLoaded', () => {
             finalPhones.sort((a, b) => a.localeCompare(b));
         }
 
+        // Handle Customer list deduplication/sorting
+        if (deduplicateEnabled) {
+            let seen = new Set();
+            customers = customers.filter(c => {
+                let key = `${c.name.toLowerCase()}|${c.phone}|${c.email.toLowerCase()}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        }
+        if (sortEnabled) {
+            customers.sort((a, b) => a.name.localeCompare(b.name));
+        }
+
         // Save states
         processedEmails = finalEmails;
         processedPhones = finalPhones;
+        processedCustomers = customers;
 
         // ==========================================================================
         // Render Results to UI
         // ==========================================================================
         
+        // Render Customer Tab
+        customerBadgeCount.textContent = customers.length;
+        statCustTotal.textContent = customers.length;
+        statCustBoth.textContent = customers.filter(c => c.phone !== "Chưa có SĐT" && c.email !== "Chưa có Email").length;
+        statCustPhoneOnly.textContent = customers.filter(c => c.phone !== "Chưa có SĐT" && c.email === "Chưa có Email").length;
+        statCustEmailOnly.textContent = customers.filter(c => c.phone === "Chưa có SĐT" && c.email !== "Chưa có Email").length;
+
+        if (customers.length > 0) {
+            customerTableBody.innerHTML = customers.map((c, i) => `
+                <tr>
+                    <td style="text-align: center;">${i + 1}</td>
+                    <td><span style="font-weight: 600; color: var(--text-primary);">${escapeHtml(c.name)}</span></td>
+                    <td style="font-family: monospace; color: ${c.phone === "Chưa có SĐT" ? 'var(--text-muted)' : 'var(--success-color)'};">${escapeHtml(c.phone)}</td>
+                    <td style="font-family: monospace; color: ${c.email === "Chưa có Email" ? 'var(--text-muted)' : 'var(--info-color)'};">${escapeHtml(c.email)}</td>
+                </tr>
+            `).join('');
+            customerOutput.value = customers.map(c => `${c.name}\t${c.phone}\t${c.email}`).join('\n');
+        } else {
+            customerTableBody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                        Dữ liệu khách hàng sẽ hiển thị ở đây sau khi xử lý...
+                    </td>
+                </tr>
+            `;
+            customerOutput.value = "";
+        }
+
         // Render Email Tab
         emailBadgeCount.textContent = finalEmails.length;
         statEmailValid.textContent = validEmails.filter(x => !x.corrected).length;
@@ -572,7 +669,6 @@ document.addEventListener('DOMContentLoaded', () => {
         statEmailInvalid.textContent = invalidEmailsList.length;
         emailOutput.value = finalEmails.join('\n');
 
-        // Email Corrected Table
         if (correctedEmailsList.length > 0) {
             emailCorrectedSection.style.display = 'block';
             emailCorrectedCount.textContent = correctedEmailsList.length;
@@ -587,7 +683,6 @@ document.addEventListener('DOMContentLoaded', () => {
             emailCorrectedSection.style.display = 'none';
         }
 
-        // Email Invalid List
         if (invalidEmailsList.length > 0) {
             emailInvalidSection.style.display = 'block';
             emailInvalidCount.textContent = invalidEmailsList.length;
@@ -606,12 +701,10 @@ document.addEventListener('DOMContentLoaded', () => {
         statPhoneDuplicate.textContent = dupPhoneCount;
         phoneOutput.value = finalPhones.join('\n');
 
-        // Duplicate Warning Banner & Card Accent
         if (dupPhoneCount > 0) {
             statPhoneDupCard.style.borderColor = 'var(--warning-accent-border)';
             statPhoneDupCard.style.color = 'var(--warning-accent-color)';
             
-            // Only show banner if Deduplication is currently disabled
             if (!deduplicateEnabled) {
                 phoneDupBanner.style.display = 'flex';
                 dupCountText.textContent = dupPhoneCount;
@@ -624,7 +717,6 @@ document.addEventListener('DOMContentLoaded', () => {
             phoneDupBanner.style.display = 'none';
         }
 
-        // Phone Duplicate Details List
         if (duplicatePhonesDetails.length > 0) {
             phoneDupSection.style.display = 'block';
             phoneDupListCount.textContent = duplicatePhonesDetails.length;
@@ -638,7 +730,6 @@ document.addEventListener('DOMContentLoaded', () => {
             phoneDupSection.style.display = 'none';
         }
 
-        // Phone Corrected Table
         if (correctedPhonesList.length > 0) {
             phoneCorrectedSection.style.display = 'block';
             phoneCorrectedCount.textContent = correctedPhonesList.length;
@@ -653,7 +744,6 @@ document.addEventListener('DOMContentLoaded', () => {
             phoneCorrectedSection.style.display = 'none';
         }
 
-        // Phone Invalid List
         if (invalidPhonesList.length > 0) {
             phoneInvalidSection.style.display = 'block';
             phoneInvalidCount.textContent = invalidPhonesList.length;
