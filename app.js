@@ -192,9 +192,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function preprocessEmailSpaces(text) {
         // 1. Remove spaces around '@'
         let cleaned = text.replace(/\s*@\s*/g, '@');
-        // 2. Remove spaces around dots in the domain part
+        // 2. Remove spaces and dots inside the domain part (e.g. . . com -> .com)
         cleaned = cleaned.replace(/@([a-zA-Z0-9\-\s\.]+)/g, (match, domainPart) => {
-            return '@' + domainPart.replace(/\s*\.\s*/g, '.');
+            // Remove all spaces, then merge multiple dots
+            return '@' + domainPart.replace(/\s+/g, '').replace(/\.+/g, '.');
         });
         return cleaned;
     }
@@ -229,18 +230,46 @@ document.addEventListener('DOMContentLoaded', () => {
                     reasons.push("Loại bỏ dấu tiếng Việt");
                 }
 
-                // 2. Correct Gmail domain typos
+                // 2. Correct domain typos
                 let lowerDomain = domainPart.toLowerCase();
-                const gmailTypoPattern = /^(g[amyei]+l[a-z0-9]*)[._-]?(c[o0][m|n|o]|co|net|com\.vn|co\.vn)?$/i;
+                
+                // Remove Vietnamese tones from domain (e.g. cơm -> com)
+                const unaccentedDomain = removeVietnameseTones(lowerDomain);
+                if (unaccentedDomain !== lowerDomain) {
+                    lowerDomain = unaccentedDomain;
+                    corrected = true;
+                    reasons.push("Sửa dấu tiếng Việt ở tên miền");
+                }
 
-                if (lowerDomain === 'googlemail.com') {
-                    domainPart = 'gmail.com';
-                    corrected = true;
-                    reasons.push("Đổi googlemail thành gmail.com");
-                } else if (lowerDomain !== 'gmail.com' && (gmailTypoPattern.test(lowerDomain) || lowerDomain === 'gmai.com' || lowerDomain === 'gmailnet')) {
-                    domainPart = 'gmail.com';
-                    corrected = true;
-                    reasons.push("Sửa lỗi gõ sai tên miền gmail.com");
+                // If it starts with gmail or matches a gmail typo, map to gmail.com
+                const gmailTypoPattern = /^(g[amyei]+l[a-z0-9]*)[._-]?(c[o0][m|n|o]|co|net|com\.vn|co\.vn)?$/i;
+                const looksLikeGmail = lowerDomain.startsWith('gmail') || 
+                                       gmailTypoPattern.test(lowerDomain) || 
+                                       lowerDomain.includes('gamil') || 
+                                       lowerDomain.includes('gmal') ||
+                                       lowerDomain === 'googlemail.com';
+
+                if (looksLikeGmail) {
+                    if (lowerDomain !== 'gmail.com') {
+                        domainPart = 'gmail.com';
+                        corrected = true;
+                        reasons.push("Đưa về tên miền chuẩn gmail.com");
+                    } else {
+                        domainPart = 'gmail.com';
+                    }
+                } else {
+                    // For non-Gmail domains, handle trailing Vietnamese words or invalid text (e.g. yahoo.com.mình -> yahoo.com)
+                    const validSubTlds = ['vn', 'tw', 'cn', 'sg', 'hk', 'my', 'ph', 'id', 'th', 'jp', 'kr', 'us', 'uk', 'au', 'ca'];
+                    const match = lowerDomain.match(/\.com\.([a-z0-9]+)$/i);
+                    if (match) {
+                        const suffix = match[1];
+                        if (!validSubTlds.includes(suffix)) {
+                            lowerDomain = lowerDomain.slice(0, -match[0].length) + '.com';
+                            domainPart = lowerDomain;
+                            corrected = true;
+                            reasons.push(`Loại bỏ hậu tố thừa .${suffix}`);
+                        }
+                    }
                 }
 
                 email = `${localPart}@${domainPart}`;
