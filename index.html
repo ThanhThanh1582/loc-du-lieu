@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail & Phone Extractor - Trích Xuất & Chuẩn Hóa Thông Tin</title>
+    <meta name="description" content="Ứng dụng hiện đại giúp trích xuất, tự động sửa lỗi và chuẩn hóa danh sách Gmail, Số điện thoại từ văn bản thô.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="app-container">
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <h1>Extractor <span>Hub</span></h1>
+                    <p>Lọc Gmail & Chuẩn Hóa Số Điện Thoại</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="themeToggle" class="theme-btn" aria-label="Chuyển đổi giao diện sáng/tối">
+                    <!-- Light Mode Icon (Sun) -->
+                    <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                    <!-- Dark Mode Icon (Moon) -->
+                    <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="app-main-grid">
+            <!-- Left Panel: Input and Config -->
+            <section class="panel-card input-panel">
+                <div class="panel-header">
+                    <span class="step-num">1</span>
+                    <h2>Dữ liệu Đầu Vào</h2>
+                </div>
+                
+                <div class="textarea-container">
+                    <textarea id="rawInput" placeholder="Nhập hoặc dán đoạn văn bản, tin nhắn, danh sách email và số điện thoại lẫn lộn vào đây...&#10;&#10;Ví dụ:&#10;Liên hệ: nguyễn văn a @ gamil.con hoặc số 0909.666.666&#10;Thêm số khác: +84909 666 666, hoặc test.mail@gmail.com.vn..."></textarea>
+                    
+                    <div id="dropZone" class="drop-zone">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p>Kéo & Thả tệp tin hoặc <span>chọn file từ máy tính</span></p>
+                        <input type="file" id="fileInput" accept=".txt,.csv,.json" style="display: none;">
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>Cấu Hình Bộ Lọc</h3>
+                    
+                    <div class="setting-row">
+                        <label class="setting-label">Chế độ lọc Email:</label>
+                        <div class="radio-toggle">
+                            <input type="radio" id="filterGmailOnly" name="emailFilterMode" value="gmail" checked>
+                            <label for="filterGmailOnly">Chỉ Gmail</label>
+                            
+                            <input type="radio" id="filterAllEmails" name="emailFilterMode" value="all">
+                            <label for="filterAllEmails">Tất cả Email</label>
+                        </div>
+                    </div>
+
+                    <div class="setting-grid">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="optAutocorrect" checked>
+                            <span class="checkmark"></span>
+                            <span class="label-text">Tự động sửa lỗi & Chuẩn hóa</span>
+                            <span class="info-tooltip" title="Tự sửa lỗi chính tả tên miền Gmail, bỏ dấu tiếng Việt, loại bỏ dấu cách và chuẩn hóa sđt">?</span>
+                        </label>
+
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="optDeduplicate" checked>
+                            <span class="checkmark"></span>
+                            <span class="label-text">Loại bỏ trùng lặp</span>
+                        </label>
+
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="optSort" checked>
+                            <span class="checkmark"></span>
+                            <span class="label-text">Sắp xếp A - Z</span>
+                        </label>
+
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="optLowercase" checked>
+                            <span class="checkmark"></span>
+                            <span class="label-text">Chuyển sang chữ thường</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button id="btnProcess" class="btn-primary">
+                    <span>Trích Xuất & Chuẩn Hóa</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                </button>
+            </section>
+
+            <!-- Right Panel: Outputs and Analysis -->
+            <section class="panel-card output-panel">
+                <div class="panel-header">
+                    <span class="step-num">2</span>
+                    <h2>Kết Quả Trích Xuất</h2>
+                </div>
+
+                <!-- Tabs Navigation -->
+                <div class="tabs-nav">
+                    <button class="tab-btn active" data-tab="emailTab">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                        Email / Gmail (<span id="emailBadgeCount">0</span>)
+                    </button>
+                    <button class="tab-btn" data-tab="phoneTab">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                        </svg>
+                        Số Điện Thoại (<span id="phoneBadgeCount">0</span>)
+                    </button>
+                </div>
+
+                <!-- Tabs Content -->
+                <div class="tabs-container">
+                    <!-- EMAIL TAB -->
+                    <div id="emailTab" class="tab-content active">
+                        <!-- Email Stats Dashboard -->
+                        <div class="stats-dashboard">
+                            <div class="stat-card success">
+                                <span class="stat-label">Đúng chuẩn</span>
+                                <span class="stat-val" id="statEmailValid">0</span>
+                            </div>
+                            <div class="stat-card warning">
+                                <span class="stat-label">Sửa lỗi được</span>
+                                <span class="stat-val" id="statEmailCorrected">0</span>
+                            </div>
+                            <div class="stat-card info" id="statEmailWrongContainer">
+                                <span class="stat-label">Sai tên miền</span>
+                                <span class="stat-val" id="statEmailWrong">0</span>
+                            </div>
+                            <div class="stat-card danger">
+                                <span class="stat-label">Không hợp lệ</span>
+                                <span class="stat-val" id="statEmailInvalid">0</span>
+                            </div>
+                        </div>
+
+                        <!-- Main Clean Output -->
+                        <div class="output-block">
+                            <div class="block-title-row">
+                                <h3>Danh Sách Email Đã Lọc Sạch</h3>
+                                <div class="action-buttons">
+                                    <button class="btn-action copy-btn" data-target="emailOutput" title="Copy vào bộ nhớ tạm">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                        Copy
+                                    </button>
+                                    <button class="btn-action" id="downloadEmailTxt">
+                                        Tải .TXT
+                                    </button>
+                                    <button class="btn-action" id="downloadEmailCsv">
+                                        Tải .CSV
+                                    </button>
+                                </div>
+                            </div>
+                            <textarea id="emailOutput" readonly placeholder="Danh sách email đã xử lý sẽ hiển thị ở đây..."></textarea>
+                        </div>
+
+                        <!-- Corrected and Errors Table -->
+                        <div class="details-section collapse-container" id="emailCorrectedSection" style="display: none;">
+                            <div class="collapse-header">
+                                <h4>Danh Sách Email Đã Sửa Lỗi (<span id="emailCorrectedCount">0</span>)</h4>
+                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="collapse-content">
+                                <div class="table-wrapper">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Văn bản gốc</th>
+                                                <th>Email đã sửa</th>
+                                                <th>Lỗi phát hiện & sửa đổi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="emailCorrectedTableBody">
+                                            <!-- Dynamic rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="details-section collapse-container" id="emailInvalidSection" style="display: none;">
+                            <div class="collapse-header">
+                                <h4>Email / Chuỗi Không Hợp Lệ (<span id="emailInvalidCount">0</span>)</h4>
+                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="collapse-content">
+                                <ul class="error-list" id="emailInvalidList">
+                                    <!-- Dynamic items -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PHONE TAB -->
+                    <div id="phoneTab" class="tab-content">
+                        <!-- Phone Stats Dashboard -->
+                        <div class="stats-dashboard">
+                            <div class="stat-card success">
+                                <span class="stat-label">Đúng chuẩn</span>
+                                <span class="stat-val" id="statPhoneValid">0</span>
+                            </div>
+                            <div class="stat-card warning">
+                                <span class="stat-label">Sửa đổi được</span>
+                                <span class="stat-val" id="statPhoneCorrected">0</span>
+                            </div>
+                            <div class="stat-card danger">
+                                <span class="stat-label">Không hợp lệ</span>
+                                <span class="stat-val" id="statPhoneInvalid">0</span>
+                            </div>
+                            <div class="stat-card warning-accent" id="statPhoneDupCard">
+                                <span class="stat-label">Số bị trùng lặp</span>
+                                <span class="stat-val" id="statPhoneDuplicate">0</span>
+                            </div>
+                        </div>
+
+                        <!-- Duplicate Warning Banner -->
+                        <div class="warning-banner" id="phoneDupBanner" style="display: none;">
+                            <div class="warning-content">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                                <div>
+                                    <h5>Phát hiện số điện thoại trùng lặp!</h5>
+                                    <p>Có <span id="dupCountText">0</span> số điện thoại xuất hiện nhiều lần trong văn bản đầu vào.</p>
+                                </div>
+                            </div>
+                            <button id="btnDeduplicateQuick" class="btn-warning-action">
+                                Loại bỏ trùng lặp
+                            </button>
+                        </div>
+
+                        <!-- Main Clean Output -->
+                        <div class="output-block">
+                            <div class="block-title-row">
+                                <h3>Danh Sách Số Điện Thoại Đã Chuẩn Hóa</h3>
+                                <div class="action-buttons">
+                                    <button class="btn-action copy-btn" data-target="phoneOutput" title="Copy vào bộ nhớ tạm">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                        Copy
+                                    </button>
+                                    <button class="btn-action" id="downloadPhoneTxt">
+                                        Tải .TXT
+                                    </button>
+                                    <button class="btn-action" id="downloadPhoneCsv">
+                                        Tải .CSV
+                                    </button>
+                                </div>
+                            </div>
+                            <textarea id="phoneOutput" readonly placeholder="Danh sách số điện thoại đã xử lý sẽ hiển thị ở đây..."></textarea>
+                        </div>
+
+                        <!-- Duplicate Warnings and Corrections table -->
+                        <div class="details-section collapse-container" id="phoneDupSection" style="display: none;">
+                            <div class="collapse-header">
+                                <h4>Danh Sách Số Trùng Lặp Chi Tiết (<span id="phoneDupListCount">0</span>)</h4>
+                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="collapse-content">
+                                <ul class="error-list warning-list" id="phoneDupList">
+                                    <!-- Dynamic warning items -->
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="details-section collapse-container" id="phoneCorrectedSection" style="display: none;">
+                            <div class="collapse-header">
+                                <h4>Danh Sách Số Điện Thoại Đã Chuẩn Hóa/Sửa Lỗi (<span id="phoneCorrectedCount">0</span>)</h4>
+                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="collapse-content">
+                                <div class="table-wrapper">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Số điện thoại gốc</th>
+                                                <th>Số đã chuẩn hóa</th>
+                                                <th>Chi tiết chuẩn hóa</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="phoneCorrectedTableBody">
+                                            <!-- Dynamic rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="details-section collapse-container" id="phoneInvalidSection" style="display: none;">
+                            <div class="collapse-header">
+                                <h4>Số Điện Thoại Không Hợp Lệ (<span id="phoneInvalidCount">0</span>)</h4>
+                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="collapse-content">
+                                <ul class="error-list" id="phoneInvalidList">
+                                    <!-- Dynamic items -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span id="toastMsg">Đã sao chép thành công!</span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
