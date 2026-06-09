@@ -78,7 +78,7 @@
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
                         <p>Kéo & Thả tệp tin hoặc <span>chọn file từ máy tính</span></p>
-                        <input type="file" id="fileInput" accept=".txt,.csv,.json" style="display: none;">
+                        <input type="file" id="fileInput" accept=".txt,.csv,.json,.xlsx,.xls" style="display: none;">
                     </div>
                 </div>
 
@@ -424,6 +424,8 @@
         <span id="toastMsg">Đã sao chép thành công!</span>
     </div>
 
+    <!-- SheetJS for Excel parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

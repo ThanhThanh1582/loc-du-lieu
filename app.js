@@ -138,13 +138,45 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     function handleUploadedFile(file) {
+        const fileName = file.name;
+        const fileExt = fileName.split('.').pop().toLowerCase();
         const reader = new FileReader();
-        reader.onload = (event) => {
-            rawInput.value = event.target.result;
-            showToast(`Đã tải lên tệp: ${file.name}`);
-            processData();
-        };
-        reader.readAsText(file);
+
+        if (fileExt === 'xlsx' || fileExt === 'xls') {
+            // Excel file parsing using SheetJS
+            reader.onload = (event) => {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    let combinedText = [];
+                    workbook.SheetNames.forEach(sheetName => {
+                        const worksheet = workbook.Sheets[sheetName];
+                        // Convert sheet to CSV format
+                        const csv = XLSX.utils.sheet_to_csv(worksheet);
+                        if (csv.trim()) {
+                            combinedText.push(csv);
+                        }
+                    });
+                    
+                    rawInput.value = combinedText.join('\n');
+                    showToast(`Đã tải lên và đọc tệp Excel: ${fileName}`);
+                    processData();
+                } catch (err) {
+                    console.error("Lỗi đọc Excel: ", err);
+                    showToast("Không thể đọc tệp Excel này!", true);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } else {
+            // Text files (.txt, .csv, .json, etc.)
+            reader.onload = (event) => {
+                rawInput.value = event.target.result;
+                showToast(`Đã tải lên tệp văn bản: ${fileName}`);
+                processData();
+            };
+            reader.readAsText(file);
+        }
     }
 
     // ==========================================================================
