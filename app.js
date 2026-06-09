@@ -258,18 +258,45 @@ document.addEventListener('DOMContentLoaded', () => {
                         domainPart = 'gmail.com';
                     }
                 } else {
-                    // For non-Gmail domains, handle trailing Vietnamese words or invalid text (e.g. yahoo.com.mình -> yahoo.com)
-                    const validSubTlds = ['vn', 'tw', 'cn', 'sg', 'hk', 'my', 'ph', 'id', 'th', 'jp', 'kr', 'us', 'uk', 'au', 'ca'];
-                    const match = lowerDomain.match(/\.com\.([a-z0-9]+)$/i);
-                    if (match) {
-                        const suffix = match[1];
-                        if (!validSubTlds.includes(suffix)) {
-                            lowerDomain = lowerDomain.slice(0, -match[0].length) + '.com';
-                            domainPart = lowerDomain;
+                    // For non-Gmail domains, handle typos:
+                    const validCountryCodes = ['vn', 'tw', 'cn', 'sg', 'hk', 'my', 'ph', 'id', 'th', 'jp', 'kr', 'us', 'uk', 'au', 'ca'];
+                    
+                    // 1. Handle missing dot (e.g. comvn -> com.vn, comxyz -> com)
+                    const comTextMatch = lowerDomain.match(/com([a-z0-9]+)$/i);
+                    if (comTextMatch) {
+                        const suffix = comTextMatch[1];
+                        if (validCountryCodes.includes(suffix)) {
+                            lowerDomain = lowerDomain.slice(0, -comTextMatch[0].length) + 'com.' + suffix;
+                            corrected = true;
+                            reasons.push(`Sửa thiếu dấu chấm trước .${suffix}`);
+                        } else {
+                            lowerDomain = lowerDomain.slice(0, -comTextMatch[0].length) + 'com';
+                            corrected = true;
+                            reasons.push(`Loại bỏ phần thừa ${suffix} sau com`);
+                        }
+                    }
+
+                    // 2. Handle trailing noise after country code (e.g. .com.vn.mình -> .com.vn)
+                    const matchVn = lowerDomain.match(/\.com\.vn\.([a-z0-9]+)$/i);
+                    if (matchVn) {
+                        const suffix = matchVn[1];
+                        lowerDomain = lowerDomain.slice(0, -matchVn[0].length) + '.com.vn';
+                        corrected = true;
+                        reasons.push(`Loại bỏ phần thừa .${suffix} sau .vn`);
+                    }
+
+                    // 3. Handle trailing noise after com (e.g. .com.mình -> .com)
+                    const matchCom = lowerDomain.match(/\.com\.([a-z0-9]+)$/i);
+                    if (matchCom) {
+                        const suffix = matchCom[1];
+                        if (!validCountryCodes.includes(suffix)) {
+                            lowerDomain = lowerDomain.slice(0, -matchCom[0].length) + '.com';
                             corrected = true;
                             reasons.push(`Loại bỏ hậu tố thừa .${suffix}`);
                         }
                     }
+                    
+                    domainPart = lowerDomain;
                 }
 
                 email = `${localPart}@${domainPart}`;
