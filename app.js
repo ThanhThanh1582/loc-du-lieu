@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadEmailCsv = document.getElementById('downloadEmailCsv');
     const downloadPhoneTxt = document.getElementById('downloadPhoneTxt');
     const downloadPhoneCsv = document.getElementById('downloadPhoneCsv');
+    const downloadCombinedCsv = document.getElementById('downloadCombinedCsv');
     
     // Toast
     const toast = document.getElementById('toast');
@@ -465,9 +466,23 @@ document.addEventListener('DOMContentLoaded', () => {
         // ----------------------------------------------------------------------
         // Part 2: Phone Number Processing
         // ----------------------------------------------------------------------
+        // Strip dates/timestamps to prevent them from being detected as phone numbers
+        // E.g., 08-06-2026 7, 08-06-2026 18, 026.06.08 19
+        const datePatterns = [
+            /\b\d{1,2}[-./]\d{1,2}[-./](?:20|19)\d{2}(?:\s+\d{1,2}(?::\d{2})*)?\b/g, // DD-MM-YYYY HH:MM
+            /\b(?:20|19)\d{2}[-./]\d{1,2}[-./]\d{1,2}(?:\s+\d{1,2}(?::\d{2})*)?\b/g, // YYYY-MM-DD HH:MM
+            /\b0\d{2}[-./]\d{1,2}[-./]\d{1,2}(?:\s+\d{1,2}(?::\d{2})*)?\b/g          // 026.06.08 19
+        ];
+        let phoneText = text;
+        if (autocorrectEnabled) {
+            datePatterns.forEach(pattern => {
+                phoneText = phoneText.replace(pattern, ' ');
+            });
+        }
+
         // Regex to match phone candidates (starts with +84, 84, 0 or word boundary di động and has digits/formatting)
         const phoneCandidateRegex = /(?:\+?84|0|\b[35789])(?:\s*[\.\-\(\)]*\s*\d){8,11}\b/g;
-        let phoneMatches = text.match(phoneCandidateRegex) || [];
+        let phoneMatches = phoneText.match(phoneCandidateRegex) || [];
 
         let validPhones = [];
         let correctedPhonesList = [];
@@ -745,5 +760,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     downloadPhoneCsv.addEventListener('click', () => {
         downloadCsvFile(processedPhones, 'Phone Number', 'phone_extractor_results.csv');
+    });
+
+    // Combined CSV Download
+    downloadCombinedCsv.addEventListener('click', () => {
+        if (processedEmails.length === 0 && processedPhones.length === 0) {
+            showToast("Không có dữ liệu sạch để tải xuống!", true);
+            return;
+        }
+
+        const BOM = '\uFEFF';
+        const headers = ["STT", "Email", "Số Điện Thoại"];
+        const rows = [headers.join(",")];
+
+        const maxLen = Math.max(processedEmails.length, processedPhones.length);
+        for (let i = 0; i < maxLen; i++) {
+            const stt = i + 1;
+            const emailVal = processedEmails[i] || "";
+            const phoneVal = processedPhones[i] || "";
+            rows.push(`${stt},"${emailVal}","${phoneVal}"`);
+        }
+
+        const csvContent = BOM + rows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", 'gmail_and_phone_results_combined.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showToast("Đã tải xuống tệp CSV tổng hợp!");
     });
 });
