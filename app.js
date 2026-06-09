@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadEmailCsv = document.getElementById('downloadEmailCsv');
     const downloadPhoneTxt = document.getElementById('downloadPhoneTxt');
     const downloadPhoneCsv = document.getElementById('downloadPhoneCsv');
-    const downloadCombinedCsv = document.getElementById('downloadCombinedCsv');
+    const downloadExcel = document.getElementById('downloadExcel');
     
     // Toast
     const toast = document.getElementById('toast');
@@ -350,32 +350,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 corrected = true;
                 reasons.push("Sửa thiếu số 0 ở đầu");
             }
+
+            // Convert old 11-digit mobile prefixes to new 10-digit prefixes
+            if (normalized.length === 11) {
+                const oldPrefix = normalized.slice(0, 4);
+                const mapping = {
+                    '0162': '032', '0163': '033', '0164': '034', '0165': '035',
+                    '0166': '036', '0167': '037', '0168': '038', '0169': '039',
+                    '0120': '070', '0121': '079', '0122': '077', '0126': '076', '0128': '078',
+                    '0123': '083', '0124': '084', '0125': '085', '0127': '081', '0129': '082',
+                    '0186': '056', '0188': '058',
+                    '0199': '059'
+                };
+                if (mapping[oldPrefix]) {
+                    normalized = mapping[oldPrefix] + normalized.slice(4);
+                    corrected = true;
+                    reasons.push(`Chuyển đổi số di động 11 số cũ (${oldPrefix} -> ${mapping[oldPrefix]})`);
+                }
+            }
         }
 
-        // Carrier Prefixes in Vietnam
-        const vnMobilePrefixes = [
-            '086', '096', '097', '098', '032', '033', '034', '035', '036', '037', '038', '039', // Viettel
-            '089', '090', '093', '070', '076', '077', '078', '079', // Mobifone
-            '088', '091', '094', '081', '082', '083', '084', '085', // Vinaphone
-            '092', '056', '058', // Vietnamobile
-            '099', '059', // Gmobile
-            '087', '055' // Wintel / Reddi
-        ];
-
+        // Check validation rules:
+        // A phone number is considered valid if:
+        // - It starts with '0' and has a length between 9 and 11
+        // - It starts with a valid mobile prefix (03, 05, 07, 08, 09) OR landline prefix (02)
         let isValid = false;
         let isLandline = false;
 
-        // Check mobile formatting (10 digits starting with 0 and correct prefix)
-        if (normalized.length === 10 && normalized.startsWith('0')) {
-            const prefix = normalized.slice(0, 3);
-            if (vnMobilePrefixes.includes(prefix)) {
+        if (normalized.startsWith('0') && normalized.length >= 9 && normalized.length <= 11) {
+            const prefix2 = normalized.slice(0, 2);
+            const isMobilePrefix = ['03', '05', '07', '08', '09'].includes(prefix2);
+            const isLandlinePrefix = prefix2 === '02';
+
+            if (isMobilePrefix) {
                 isValid = true;
+            } else if (isLandlinePrefix && normalized.length === 11) {
+                isValid = true;
+                isLandline = true;
             }
-        } 
-        // Check landline formatting (11 digits starting with 02)
-        else if (normalized.length === 11 && normalized.startsWith('02')) {
-            isValid = true;
-            isLandline = true;
         }
 
         return {
@@ -762,36 +774,74 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadCsvFile(processedPhones, 'Phone Number', 'phone_extractor_results.csv');
     });
 
-    // Combined CSV Download
-    downloadCombinedCsv.addEventListener('click', () => {
+    // Combined Excel Download (.xls HTML-based Excel sheet)
+    downloadExcel.addEventListener('click', () => {
         if (processedEmails.length === 0 && processedPhones.length === 0) {
             showToast("Không có dữ liệu sạch để tải xuống!", true);
             return;
         }
 
-        const BOM = '\uFEFF';
-        const headers = ["STT", "Email", "Số Điện Thoại"];
-        const rows = [headers.join(",")];
-
+        let html = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>KetQuaLoc</x:Name>
+                                <x:WorksheetOptions>
+                                    <x:DisplayGridlines/>
+                                </x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+                <meta charset="utf-8">
+                <style>
+                    th { background-color: #6366f1; color: white; font-weight: bold; font-size: 11pt; border: 0.5pt solid #ccc; padding: 6px; }
+                    td { border: 0.5pt solid #ccc; padding: 6px; font-family: Arial, sans-serif; font-size: 10pt; }
+                </style>
+            </head>
+            <body>
+                <table>
+                    <tr>
+                        <th style="width: 50px;">STT</th>
+                        <th style="width: 250px;">Email / Gmail Đã Lọc</th>
+                        <th style="width: 180px;">Số Điện Thoại Chuẩn Hóa</th>
+                    </tr>
+        `;
+        
         const maxLen = Math.max(processedEmails.length, processedPhones.length);
         for (let i = 0; i < maxLen; i++) {
-            const stt = i + 1;
-            const emailVal = processedEmails[i] || "";
-            const phoneVal = processedPhones[i] || "";
-            rows.push(`${stt},"${emailVal}","${phoneVal}"`);
+            const email = processedEmails[i] || "";
+            const phone = processedPhones[i] || "";
+            html += `
+                <tr>
+                    <td style="text-align: center;">${i + 1}</td>
+                    <td>${email}</td>
+                    <td style="mso-number-format:'\\@'; text-align: left;">${phone}</td>
+                </tr>
+            `;
         }
+        
+        html += `
+                </table>
+            </body>
+            </html>
+        `;
 
-        const csvContent = BOM + rows.join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", 'gmail_and_phone_results_combined.csv');
+        link.setAttribute("download", 'gmail_and_phone_results_combined.xls');
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        showToast("Đã tải xuống tệp CSV tổng hợp!");
+        showToast("Đã tải xuống tệp Excel tổng hợp!");
     });
 });
